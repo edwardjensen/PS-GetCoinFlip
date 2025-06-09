@@ -148,7 +148,10 @@ jobs:
           
           Write-Host "Publishing CoinFlip module version $moduleVersion to PowerShell Gallery..." -ForegroundColor Yellow
           
-          # Publish the module to PSGallery
-          Publish-Module -Path ./ -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Verbose
+          # List files to confirm what we're seeing
+          Get-ChildItem -Path $PWD | Format-Table
+          
+          # Just reference the module by name since it's already loaded properly
+          Publish-Module -Name CoinFlip -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Verbose
           
           Write-Host "Successfully published CoinFlip module version $moduleVersion to PowerShell Gallery!" -ForegroundColor Green
