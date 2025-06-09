@@ -151,7 +151,30 @@ jobs:
           # List files to confirm what we're seeing
           Get-ChildItem -Path $PWD | Format-Table
           
-          # Just reference the module by name since it's already loaded properly
-          Publish-Module -Name CoinFlip -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Verbose
+          # Create proper module structure for publishing
+          Write-Host "Creating proper module structure for publishing..." -ForegroundColor Yellow
           
-          Write-Host "Successfully published CoinFlip module version $moduleVersion to PowerShell Gallery!" -ForegroundColor Green
+          # 1. Create module folder with module name in a temp location
+          $moduleName = "CoinFlip"
+          $tempPath = Join-Path $env:TEMP $moduleName
+          
+          if (Test-Path $tempPath) {
+              Remove-Item -Path $tempPath -Recurse -Force
+          }
+          
+          $null = New-Item -Path $tempPath -ItemType Directory -Force
+          
+          # 2. Copy all module files to the temp location
+          Write-Host "Copying module files to $tempPath..." -ForegroundColor Yellow
+          Copy-Item -Path "$PWD/CoinFlip.psd1" -Destination "$tempPath/$moduleName.psd1"
+          Copy-Item -Path "$PWD/CoinFlip.psm1" -Destination "$tempPath/$moduleName.psm1"
+          
+          # 3. Test importing the module from the new location
+          Write-Host "Testing module in new location..." -ForegroundColor Yellow
+          Import-Module $tempPath -Force -Verbose
+          
+          # 4. Publish the module from the temp location
+          Write-Host "Publishing module from $tempPath..." -ForegroundColor Yellow
+          Publish-Module -Path $tempPath -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Verbose
+          
+          Write-Host "Successfully published $moduleName module version $moduleVersion to PowerShell Gallery!" -ForegroundColor Green
