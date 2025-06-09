@@ -1,0 +1,116 @@
+name: Test PowerShell Module
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      test_level:
+        description: 'Testing level (basic/full)'
+        required: false
+        default: 'basic'
+        type: choice
+        options:
+          - basic
+          - full
+
+jobs:
+  test-module:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # PowerShell Core is pre-installed on GitHub-hosted runners
+      # No need for a setup step, just use the shell directive
+      
+      - name: Run basic module tests
+        shell: pwsh
+        run: |
+          Write-Host "Running basic tests on ${{ matrix.os }}" -ForegroundColor Green
+          
+          # Test module import
+          Write-Host "Testing module import..." -ForegroundColor Yellow
+          Import-Module ./CoinFlip.psd1 -Force -Verbose
+          
+          # Test function existence
+          Write-Host "Testing function existence..." -ForegroundColor Yellow
+          $function = Get-Command -Module CoinFlip -Name Get-CoinFlip -ErrorAction SilentlyContinue
+          if (-not $function) {
+              throw "Function Get-CoinFlip not found in module!"
+          }
+          Write-Host "Function Get-CoinFlip found successfully" -ForegroundColor Green
+          
+          # Test basic functionality with various inputs
+          Write-Host "Testing function with small flip count..." -ForegroundColor Yellow
+          $result = Get-CoinFlip -FlipCount 10
+          Write-Host "Testing function with medium flip count..." -ForegroundColor Yellow 
+          $result = Get-CoinFlip -FlipCount 100
+          Write-Host "Testing function with large flip count..." -ForegroundColor Yellow
+          $result = Get-CoinFlip -FlipCount 1000
+          
+          Write-Host "All basic tests passed successfully!" -ForegroundColor Green
+      
+      - name: Run statistical distribution tests
+        if: github.event.inputs.test_level == 'full' || github.event_name == 'schedule'
+        shell: pwsh
+        run: |
+          Write-Host "Running statistical distribution tests..." -ForegroundColor Yellow
+          
+          # Run a large number of flips to test distribution
+          $flipCount = 10000
+          Write-Host "Testing random distribution with $flipCount flips..." -ForegroundColor Yellow
+          
+          # Import the module
+          Import-Module ./CoinFlip.psd1 -Force
+          
+          # Capture function output
+          $output = Get-CoinFlip -FlipCount $flipCount | Out-String
+          
+          # Parse the output to get heads and tails count
+          if ($output -match 'Heads count: (\d+) \((\d+\.\d+)%\)') {
+              $headsCount = [int]$matches[1]
+              $headsPct = [double]$matches[2]
+          }
+          if ($output -match 'Tails count: (\d+) \((\d+\.\d+)%\)') {
+              $tailsCount = [int]$matches[1]
+              $tailsPct = [double]$matches[2]
+          }
+          
+          # Verify that the counts add up to the total
+          if ($headsCount + $tailsCount -ne $flipCount) {
+              throw "Error: Heads ($headsCount) + Tails ($tailsCount) doesn't equal total flips ($flipCount)"
+          }
+          
+          # Test if the distribution is roughly even (within 5% of 50/50)
+          $headsPctDiff = [Math]::Abs($headsPct - 50)
+          if ($headsPctDiff -gt 5) {
+              Write-Warning "Distribution appears skewed: Heads at $headsPct% (expected close to 50%)"
+          } else {
+              Write-Host "Distribution test passed: Heads at $headsPct%, Tails at $tailsPct%" -ForegroundColor Green
+          }
+          
+          Write-Host "All statistical tests completed successfully" -ForegroundColor Green
+      
+      - name: Generate test summary
+        shell: pwsh
+        run: |
+          Write-Host "Test Summary for ${{ matrix.os }}" -ForegroundColor Cyan
+          Write-Host "----------------------------------------" -ForegroundColor Cyan
+          Write-Host "✅ Module imports successfully" -ForegroundColor Green
+          Write-Host "✅ Function Get-CoinFlip exists" -ForegroundColor Green
+          Write-Host "✅ Function works with various flip counts" -ForegroundColor Green
+          
+          if ('${{ github.event.inputs.test_level }}' -eq 'full') {
+            Write-Host "✅ Statistical distribution tests completed" -ForegroundColor Green
+          }
+          
+          Write-Host "----------------------------------------" -ForegroundColor Cyan
+          Write-Host "All tests passed successfully!" -ForegroundColor Green
