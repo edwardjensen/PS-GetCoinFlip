@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2025-06-08
 
 ### Added
+
 - Initial release of the CoinFlip module
 - `Get-CoinFlip` function for simulating coin flips
 - Added result statistics including percentages and execution time
-- GitHub Actions workflow for publishing to the PowerShell Gallery
+- GitHub Actions workflow for cross-platform testing (Windows, macOS, Linux)
+- Automated deployment to PowerShell Gallery after successful tests

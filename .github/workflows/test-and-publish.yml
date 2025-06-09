@@ -1,4 +1,4 @@
-name: Test PowerShell Module
+name: Test and Publish PowerShell Module
 
 on:
   push:
@@ -114,3 +114,41 @@ jobs:
           
           Write-Host "----------------------------------------" -ForegroundColor Cyan
           Write-Host "All tests passed successfully!" -ForegroundColor Green
+
+  # Only deploy to PSGallery once after all tests have passed
+  # This job will only run after all test jobs have completed successfully
+  publish-to-gallery:
+    name: Publish to PowerShell Gallery
+    needs: test-module
+    # Only run this job if we're on the main branch and not in a PR
+    if: success() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Get module version
+        id: get-version
+        shell: pwsh
+        run: |
+          # Import the module manifest
+          $manifestPath = "./CoinFlip.psd1"
+          $manifest = Import-PowerShellDataFile -Path $manifestPath
+          $moduleVersion = $manifest.ModuleVersion
+          
+          Write-Host "Module version: $moduleVersion"
+          
+          # Set output for use in later steps
+          Write-Output "VERSION=$moduleVersion" >> $env:GITHUB_OUTPUT
+      
+      - name: Publish to PowerShell Gallery
+        shell: pwsh
+        run: |
+          $moduleVersion = "${{ steps.get-version.outputs.VERSION }}"
+          
+          Write-Host "Publishing CoinFlip module version $moduleVersion to PowerShell Gallery..." -ForegroundColor Yellow
+          
+          # Publish the module to PSGallery
+          Publish-Module -Path ./ -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Verbose
+          
+          Write-Host "Successfully published CoinFlip module version $moduleVersion to PowerShell Gallery!" -ForegroundColor Green
