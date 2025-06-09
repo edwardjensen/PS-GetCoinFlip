@@ -148,33 +148,20 @@ jobs:
           
           Write-Host "Publishing CoinFlip module version $moduleVersion to PowerShell Gallery..." -ForegroundColor Yellow
           
-          # List files to confirm what we're seeing
-          Get-ChildItem -Path $PWD | Format-Table
-          
-          # Create proper module structure for publishing
-          Write-Host "Creating proper module structure for publishing..." -ForegroundColor Yellow
-          
-          # 1. Create module folder with module name in a temp location
+          # For PowerShell Gallery, first install the module locally so we can publish by name
           $moduleName = "CoinFlip"
-          $tempPath = Join-Path $env:TEMP $moduleName
+          $moduleDir = "$HOME/.local/share/powershell/Modules/$moduleName"
           
-          if (Test-Path $tempPath) {
-              Remove-Item -Path $tempPath -Recurse -Force
-          }
+          # Create the module directory
+          New-Item -Path $moduleDir -ItemType Directory -Force
           
-          $null = New-Item -Path $tempPath -ItemType Directory -Force
+          # Copy the module files
+          Copy-Item -Path "$moduleName.ps*1" -Destination $moduleDir/
           
-          # 2. Copy all module files to the temp location
-          Write-Host "Copying module files to $tempPath..." -ForegroundColor Yellow
-          Copy-Item -Path "$PWD/CoinFlip.psd1" -Destination "$tempPath/$moduleName.psd1"
-          Copy-Item -Path "$PWD/CoinFlip.psm1" -Destination "$tempPath/$moduleName.psm1"
+          # Import to verify
+          Import-Module -Name $moduleName -Force
           
-          # 3. Test importing the module from the new location
-          Write-Host "Testing module in new location..." -ForegroundColor Yellow
-          Import-Module $tempPath -Force -Verbose
-          
-          # 4. Publish the module from the temp location
-          Write-Host "Publishing module from $tempPath..." -ForegroundColor Yellow
-          Publish-Module -Path $tempPath -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Verbose
+          # Publish using the locally installed module
+          Publish-Module -Name $moduleName -NuGetApiKey ${{ secrets.PSGALLERYKEY }} -Verbose
           
           Write-Host "Successfully published $moduleName module version $moduleVersion to PowerShell Gallery!" -ForegroundColor Green
